@@ -59,8 +59,15 @@ class PythonAnalyzer:
             return
 
         local_pkg = project_root / module
+        local_module_file = project_root / f"{module}.py"
         src_local_pkg = project_root / "src" / module
-        if local_pkg.exists() or src_local_pkg.exists():
+        src_local_module_file = project_root / "src" / f"{module}.py"
+        if (
+            local_pkg.exists()
+            or local_module_file.exists()
+            or src_local_pkg.exists()
+            or src_local_module_file.exists()
+        ):
             result.local.add(module)
             return
 
