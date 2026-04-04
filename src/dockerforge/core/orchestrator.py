@@ -16,9 +16,6 @@ class DockerOrchestrator:
             stderr=subprocess.STDOUT,
             text=True,
         )
-        if process.stdout is None:
-            raise RuntimeError("Docker build did not provide stdout stream")
-
         for line in process.stdout:
             yield line.rstrip("\n")
 

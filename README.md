@@ -37,6 +37,6 @@ dockerforge/
 
 ```bash
 python -m pip install -e .
-python -m dockerforge.cli --help
+dockerforge --help
 python -m unittest discover -s tests -v
 ```
