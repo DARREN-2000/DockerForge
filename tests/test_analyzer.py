@@ -3,6 +3,8 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from dockerforge.core.analyzer import PythonAnalyzer
 
@@ -18,11 +20,13 @@ class TestPythonAnalyzer(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = PythonAnalyzer().analyze_file(target, root)
+            fake_spec = SimpleNamespace(origin="/tmp/site-packages/requests/__init__.py")
+            with patch("dockerforge.core.analyzer.importlib.util.find_spec", return_value=fake_spec):
+                result = PythonAnalyzer().analyze_file(target, root)
 
             self.assertIn("os", result.stdlib)
+            self.assertIn("requests", result.third_party)
             self.assertIn("localmod", result.local)
-            self.assertTrue("requests" in result.third_party or "requests" in result.local)
 
 
 if __name__ == "__main__":
