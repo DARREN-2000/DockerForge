@@ -54,7 +54,7 @@ class ConfigPatcher:
         if to_install:
             install_line = f"RUN pip install --no-cache-dir {' '.join(to_install)}"
             insert_idx = self._find_insert_index(lines)
-            lines.insert(insert_idx + 1 if insert_idx < len(lines) else insert_idx, install_line)
+            lines.insert(insert_idx, install_line)
             changed = True
 
         content = "\n".join(lines)

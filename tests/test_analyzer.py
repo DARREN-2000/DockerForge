@@ -20,7 +20,7 @@ class TestPythonAnalyzer(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            fake_spec = SimpleNamespace(origin="/tmp/site-packages/requests/__init__.py")
+            fake_spec = SimpleNamespace(origin="mock-site-packages/requests/__init__.py")
             with patch("dockerforge.core.analyzer.importlib.util.find_spec", return_value=fake_spec):
                 result = PythonAnalyzer().analyze_file(target, root)
 
