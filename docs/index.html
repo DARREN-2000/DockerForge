@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DockerForge Web</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="container">
+      <h1>DockerForge Web</h1>
+      <p>Analyze imports, generate Dockerfiles, and simulate remediation in your browser.</p>
+    </header>
+
+    <main class="container grid">
+      <section class="card">
+        <h2>Import Analyzer</h2>
+        <label for="localModules">Local modules (comma-separated)</label>
+        <input id="localModules" placeholder="dockerforge, app, utils" />
+        <label for="sourceCode">Python source</label>
+        <textarea id="sourceCode" rows="10" placeholder="import os\nimport requests\nfrom app import main"></textarea>
+        <button id="analyzeBtn">Analyze</button>
+        <pre id="analyzeOutput" class="output"></pre>
+      </section>
+
+      <section class="card">
+        <h2>Dockerfile Generator</h2>
+        <label for="entrypoint">Entrypoint</label>
+        <input id="entrypoint" value="main.py" />
+        <label for="pythonVersion">Python version image tag</label>
+        <input id="pythonVersion" value="3.12-slim" />
+        <label for="deps">Third-party dependencies (comma-separated)</label>
+        <input id="deps" placeholder="fastapi, uvicorn" />
+        <button id="generateBtn">Generate</button>
+        <pre id="dockerfileOutput" class="output"></pre>
+        <pre id="dockerignoreOutput" class="output"></pre>
+      </section>
+
+      <section class="card">
+        <h2>Remediation Simulator</h2>
+        <label for="dockerfileInput">Dockerfile</label>
+        <textarea id="dockerfileInput" rows="10" placeholder="FROM python:3.12-slim\nCOPY . /app\nCMD [\"python\", \"app.py\"]"></textarea>
+        <label for="buildLogs">Build logs</label>
+        <textarea id="buildLogs" rows="8" placeholder="ModuleNotFoundError: No module named 'pydantic'"></textarea>
+        <button id="remediateBtn">Apply Remediation</button>
+        <pre id="remediationOutput" class="output"></pre>
+      </section>
+    </main>
+
+    <footer class="container">
+      <small>Static app for GitHub Pages deployment.</small>
+    </footer>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
