@@ -77,7 +77,9 @@ build/
 }
 
 function patchDockerfile(dockerfileContent, buildLogsRaw) {
-  const lines = dockerfileContent.split(/\r?\n/).filter((_, idx, arr) => !(idx === arr.length - 1 && arr[idx] === ""));
+  const lines = dockerfileContent
+    .split(/\r?\n/)
+    .filter((line, idx, arr) => idx !== arr.length - 1 || line !== "");
   const logs = buildLogsRaw.split(/\r?\n/);
 
   const needsWorkdir = logs.some((line) => /workdir.*not set|no working directory/i.test(line));
@@ -112,19 +114,17 @@ function patchDockerfile(dockerfileContent, buildLogsRaw) {
 
   let changed = false;
 
-  if (needsWorkdir && !hasWorkdir) {
-    lines.splice(findInsertIndex(), 0, "WORKDIR /app");
-    changed = true;
-  }
-
+  const insertions = [];
+  if (needsWorkdir && !hasWorkdir) insertions.push("WORKDIR /app");
   if (needsApt && !hasApt) {
-    lines.splice(findInsertIndex(), 0, "RUN apt-get update && apt-get install -y --no-install-recommends curl");
-    changed = true;
+    insertions.push("RUN apt-get update && apt-get install -y --no-install-recommends curl");
   }
-
   const toInstall = uniqueSorted([...missing].filter((pkg) => pkg && !installed.has(pkg)));
   if (toInstall.length) {
-    lines.splice(findInsertIndex(), 0, `RUN pip install --no-cache-dir ${toInstall.join(" ")}`);
+    insertions.push(`RUN pip install --no-cache-dir ${toInstall.join(" ")}`);
+  }
+  if (insertions.length) {
+    lines.splice(findInsertIndex(), 0, ...insertions);
     changed = true;
   }
 
