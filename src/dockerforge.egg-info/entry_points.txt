@@ -1,0 +1,2 @@
+[console_scripts]
+dockerforge = dockerforge.cli:main
