@@ -100,14 +100,14 @@ DockerForge/
 ### 1) Install package
 
 ```bash
-cd /home/runner/work/DockerForge/DockerForge
+cd DockerForge
 python -m pip install -e .
 ```
 
 ### 2) Run tests
 
 ```bash
-cd /home/runner/work/DockerForge/DockerForge
+cd DockerForge
 python -m unittest discover -s tests -v
 ```
 
@@ -120,7 +120,7 @@ dockerforge --help
 ### 4) Run web app locally
 
 ```bash
-cd /home/runner/work/DockerForge/DockerForge/docs
+cd DockerForge/docs
 python -m http.server 8000
 ```
 
@@ -130,7 +130,7 @@ Open: `http://localhost:8000`
 
 ## GitHub Pages Deployment
 
-Deployment workflow: `/home/runner/work/DockerForge/DockerForge/.github/workflows/deploy-pages.yml`
+Deployment workflow: `.github/workflows/deploy-pages.yml`
 
 ### Trigger Conditions
 
@@ -145,17 +145,16 @@ In GitHub repo settings:
 
 ### Expected URL
 
-- `https://DARREN-2000.github.io/DockerForge/`
+- `https://<GITHUB_USERNAME>.github.io/DockerForge/`
+- Example for this repo owner: `https://DARREN-2000.github.io/DockerForge/`
 
 ### Is it deployed and running right now?
 
-From the latest workflow inventory, the Pages deployment workflow is not visible on default-branch workflow listings yet, so production Pages deployment is **not yet confirmed live** from this branch alone.
+Check Actions for the `Deploy DockerForge Web to GitHub Pages` workflow run:
 
-To make it live:
-
-1. Merge this branch to `main`.
+1. Ensure this branch is merged to `main`.
 2. Ensure **Pages source = GitHub Actions**.
-3. Run/confirm `Deploy DockerForge Web to GitHub Pages` workflow success.
+3. Confirm the `deploy` and `verify` jobs pass.
 4. Open the URL above.
 
 ---
@@ -176,7 +175,7 @@ To make it live:
 Install editable package first:
 
 ```bash
-cd /home/runner/work/DockerForge/DockerForge
+cd DockerForge
 python -m pip install -e .
 ```
 
