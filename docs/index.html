@@ -10,45 +10,72 @@
     <header class="container">
       <h1>DockerForge Web</h1>
       <p>Analyze imports, generate Dockerfiles, and simulate remediation in your browser.</p>
+      <p id="appStatus" class="status" aria-live="polite">Ready.</p>
     </header>
 
     <main class="container grid">
       <section class="card">
         <h2>Import Analyzer</h2>
+        <div class="row">
+          <button id="analyzeExampleBtn" type="button">Load Example</button>
+          <button id="analyzeClearBtn" type="button">Clear</button>
+        </div>
         <label for="localModules">Local modules (comma-separated)</label>
-        <input id="localModules" placeholder="dockerforge, app, utils" />
+        <input id="localModules" placeholder="dockerforge, app, utils" autocomplete="off" />
         <label for="sourceCode">Python source</label>
         <textarea id="sourceCode" rows="10" placeholder="import os\nimport requests\nfrom app import main"></textarea>
-        <button id="analyzeBtn">Analyze</button>
-        <pre id="analyzeOutput" class="output"></pre>
+        <div class="row">
+          <button id="analyzeBtn" type="button">Analyze</button>
+          <button id="copyAnalyzeBtn" type="button">Copy Output</button>
+        </div>
+        <pre id="analyzeOutput" class="output" aria-live="polite"></pre>
       </section>
 
       <section class="card">
         <h2>Dockerfile Generator</h2>
+        <div class="row">
+          <button id="generateExampleBtn" type="button">Load Example</button>
+          <button id="generateClearBtn" type="button">Clear</button>
+        </div>
         <label for="entrypoint">Entrypoint</label>
-        <input id="entrypoint" value="main.py" />
+        <input id="entrypoint" value="main.py" autocomplete="off" />
         <label for="pythonVersion">Python version image tag</label>
-        <input id="pythonVersion" value="3.12-slim" />
+        <input id="pythonVersion" value="3.12-slim" autocomplete="off" />
         <label for="deps">Third-party dependencies (comma-separated)</label>
-        <input id="deps" placeholder="fastapi, uvicorn" />
-        <button id="generateBtn">Generate</button>
-        <pre id="dockerfileOutput" class="output"></pre>
-        <pre id="dockerignoreOutput" class="output"></pre>
+        <input id="deps" placeholder="fastapi, uvicorn" autocomplete="off" />
+        <div class="row">
+          <button id="generateBtn" type="button">Generate</button>
+          <button id="copyDockerfileBtn" type="button">Copy Dockerfile</button>
+          <button id="downloadDockerfileBtn" type="button">Download Dockerfile</button>
+        </div>
+        <pre id="dockerfileOutput" class="output" aria-live="polite"></pre>
+        <div class="row">
+          <button id="copyDockerignoreBtn" type="button">Copy .dockerignore</button>
+          <button id="downloadDockerignoreBtn" type="button">Download .dockerignore</button>
+        </div>
+        <pre id="dockerignoreOutput" class="output" aria-live="polite"></pre>
       </section>
 
       <section class="card">
         <h2>Remediation Simulator</h2>
+        <div class="row">
+          <button id="remediateExampleBtn" type="button">Load Example</button>
+          <button id="remediateClearBtn" type="button">Clear</button>
+        </div>
         <label for="dockerfileInput">Dockerfile</label>
         <textarea id="dockerfileInput" rows="10" placeholder="FROM python:3.12-slim\nCOPY . /app\nCMD [\"python\", \"app.py\"]"></textarea>
         <label for="buildLogs">Build logs</label>
         <textarea id="buildLogs" rows="8" placeholder="ModuleNotFoundError: No module named 'pydantic'"></textarea>
-        <button id="remediateBtn">Apply Remediation</button>
-        <pre id="remediationOutput" class="output"></pre>
+        <div class="row">
+          <button id="remediateBtn" type="button">Apply Remediation</button>
+          <button id="copyRemediationBtn" type="button">Copy Output</button>
+        </div>
+        <pre id="remediationOutput" class="output" aria-live="polite"></pre>
       </section>
     </main>
 
     <footer class="container">
-      <small>Static app for GitHub Pages deployment.</small>
+      <small>Static app for GitHub Pages deployment. Last loaded: <span id="loadedAt"></span>.</small>
     </footer>
 
     <script src="./app.js" type="module"></script>

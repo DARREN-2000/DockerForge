@@ -38,6 +38,11 @@ body {
 
 h1, h2 { margin: 0.2rem 0; }
 p { color: var(--muted); }
+.status {
+  color: #a7ffca;
+  margin-top: 0.25rem;
+  font-size: 0.92rem;
+}
 
 label {
   font-size: 0.9rem;
@@ -63,6 +68,12 @@ button {
 }
 
 button:hover { filter: brightness(1.08); }
+
+.row {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
 
 .output {
   background: #050915;

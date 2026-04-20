@@ -22,7 +22,7 @@ function classifyImports(source, localModulesRaw) {
   const local = [];
   const localModules = new Set(tokenizeDeps(localModulesRaw));
 
-  const importPattern = /^\s*import\s+([\w\.\s,]+)$/gm;
+  const importPattern = /^\s*import\s+([^\n#]+)$/gm;
   const fromPattern = /^\s*from\s+([\w\.]+)\s+import\s+/gm;
 
   const modules = [];
@@ -135,15 +135,89 @@ function setOutput(id, value) {
   document.getElementById(id).textContent = value;
 }
 
+function setStatus(message) {
+  document.getElementById("appStatus").textContent = message;
+}
+
+async function copyToClipboard(value, label) {
+  if (!value) {
+    setStatus(`Nothing to copy for ${label}.`);
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(value);
+    setStatus(`Copied ${label} to clipboard.`);
+  } catch {
+    setStatus(`Clipboard access failed for ${label}; copy manually.`);
+  }
+}
+
+function downloadText(filename, content) {
+  if (!content) {
+    setStatus(`Nothing to download for ${filename}.`);
+    return;
+  }
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+  setStatus(`Downloaded ${filename}.`);
+}
+
+document.getElementById("loadedAt").textContent = new Date().toISOString();
+
+document.getElementById("analyzeExampleBtn").addEventListener("click", () => {
+  document.getElementById("localModules").value = "app,utils";
+  document.getElementById("sourceCode").value = "import os\nimport requests\nfrom app import main\nfrom utils.helpers import run\n";
+  setOutput("analyzeOutput", "");
+  setStatus("Loaded analyzer example.");
+});
+
+document.getElementById("analyzeClearBtn").addEventListener("click", () => {
+  document.getElementById("localModules").value = "";
+  document.getElementById("sourceCode").value = "";
+  setOutput("analyzeOutput", "");
+  setStatus("Cleared analyzer inputs.");
+});
+
 document.getElementById("analyzeBtn").addEventListener("click", () => {
   const source = document.getElementById("sourceCode").value;
   const local = document.getElementById("localModules").value;
   if (!source.trim()) {
     setOutput("analyzeOutput", "Please provide Python source.");
+    setStatus("Analyzer validation error.");
     return;
   }
   const result = classifyImports(source, local);
   setOutput("analyzeOutput", JSON.stringify(result, null, 2));
+  setStatus("Analysis complete.");
+});
+
+document.getElementById("copyAnalyzeBtn").addEventListener("click", async () => {
+  await copyToClipboard(document.getElementById("analyzeOutput").textContent, "analyzer output");
+});
+
+document.getElementById("generateExampleBtn").addEventListener("click", () => {
+  document.getElementById("entrypoint").value = "main.py";
+  document.getElementById("pythonVersion").value = "3.12-slim";
+  document.getElementById("deps").value = "fastapi,uvicorn,pydantic";
+  setOutput("dockerfileOutput", "");
+  setOutput("dockerignoreOutput", "");
+  setStatus("Loaded generator example.");
+});
+
+document.getElementById("generateClearBtn").addEventListener("click", () => {
+  document.getElementById("entrypoint").value = "main.py";
+  document.getElementById("pythonVersion").value = "3.12-slim";
+  document.getElementById("deps").value = "";
+  setOutput("dockerfileOutput", "");
+  setOutput("dockerignoreOutput", "");
+  setStatus("Cleared generator inputs.");
 });
 
 document.getElementById("generateBtn").addEventListener("click", () => {
@@ -154,17 +228,51 @@ document.getElementById("generateBtn").addEventListener("click", () => {
   if (!entrypoint) {
     setOutput("dockerfileOutput", "Entrypoint is required.");
     setOutput("dockerignoreOutput", "");
+    setStatus("Generator validation error.");
     return;
   }
   if (!pythonVersion) {
     setOutput("dockerfileOutput", "Python version image tag is required.");
     setOutput("dockerignoreOutput", "");
+    setStatus("Generator validation error.");
     return;
   }
 
   const artifacts = generateDockerArtifacts(entrypoint, pythonVersion, deps);
   setOutput("dockerfileOutput", artifacts.dockerfile);
   setOutput("dockerignoreOutput", artifacts.dockerignore);
+  setStatus("Generation complete.");
+});
+
+document.getElementById("copyDockerfileBtn").addEventListener("click", async () => {
+  await copyToClipboard(document.getElementById("dockerfileOutput").textContent, "Dockerfile");
+});
+
+document.getElementById("downloadDockerfileBtn").addEventListener("click", () => {
+  downloadText("Dockerfile", document.getElementById("dockerfileOutput").textContent);
+});
+
+document.getElementById("copyDockerignoreBtn").addEventListener("click", async () => {
+  await copyToClipboard(document.getElementById("dockerignoreOutput").textContent, ".dockerignore");
+});
+
+document.getElementById("downloadDockerignoreBtn").addEventListener("click", () => {
+  downloadText(".dockerignore", document.getElementById("dockerignoreOutput").textContent);
+});
+
+document.getElementById("remediateExampleBtn").addEventListener("click", () => {
+  document.getElementById("dockerfileInput").value = "FROM python:3.12-slim\nCOPY . /app\nCMD [\"python\", \"app.py\"]\n";
+  document.getElementById("buildLogs").value =
+    "ModuleNotFoundError: No module named 'pydantic'\nunable to locate package git\n";
+  setOutput("remediationOutput", "");
+  setStatus("Loaded remediation example.");
+});
+
+document.getElementById("remediateClearBtn").addEventListener("click", () => {
+  document.getElementById("dockerfileInput").value = "";
+  document.getElementById("buildLogs").value = "";
+  setOutput("remediationOutput", "");
+  setStatus("Cleared remediation inputs.");
 });
 
 document.getElementById("remediateBtn").addEventListener("click", () => {
@@ -172,6 +280,7 @@ document.getElementById("remediateBtn").addEventListener("click", () => {
   const logs = document.getElementById("buildLogs").value;
   if (!dockerfile.trim()) {
     setOutput("remediationOutput", "Dockerfile content is required.");
+    setStatus("Remediation validation error.");
     return;
   }
   const patched = patchDockerfile(dockerfile, logs);
@@ -179,4 +288,9 @@ document.getElementById("remediateBtn").addEventListener("click", () => {
     "remediationOutput",
     patched.changed ? patched.content : "No remediation changes were required."
   );
+  setStatus(patched.changed ? "Remediation patch generated." : "No remediation changes required.");
+});
+
+document.getElementById("copyRemediationBtn").addEventListener("click", async () => {
+  await copyToClipboard(document.getElementById("remediationOutput").textContent, "remediation output");
 });
