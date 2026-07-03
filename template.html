@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DockerForge | Production Playground</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            850: '#1f2937',
+                            900: '#111827',
+                            950: '#030712',
+                        },
+                        primary: {
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .monaco-container {
+            height: calc(100vh - 280px);
+            min-height: 400px;
+        }
+        .logs-container {
+            height: 150px;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+        body {
+            background-color: #030712;
+            color: #f3f4f6;
+        }
+        #loader {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(3, 7, 18, 0.9);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col font-sans antialiased selection:bg-primary-500 selection:text-white">
+
+    <div id="loader">
+        <div class="spinner mb-4"></div>
+        <h2 class="text-xl font-semibold text-primary-400">Loading DockerForge AI Engine...</h2>
+        <p class="text-gray-400 mt-2">Initializing Pyodide and WebAssembly environment</p>
+    </div>
+
+    <header class="bg-gray-900 border-b border-gray-800 shadow-lg shrink-0">
+        <div class="max-w-[100rem] mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center shadow-lg shadow-primary-500/20">
+                        <i class="fa-brands fa-docker text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-purple-400">DockerForge</h1>
+                        <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Pro Playground</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden flex flex-col p-4 gap-4 max-w-[100rem] w-full mx-auto">
+        <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-200">Interactive Auto-Remediation Loop</h2>
+            <div class="flex gap-3">
+                <button onclick="analyzeAndGenerate()" class="px-5 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-500 shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    Analyze & Generate
+                </button>
+                <button onclick="runRemediation()" class="px-5 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-500 shadow-lg shadow-purple-500/20 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-wrench"></i>
+                    Auto Remediate
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
+            <div class="flex flex-col gap-4 min-h-0">
+                <div class="flex-1 flex flex-col bg-gray-900 rounded-xl border border-gray-800 shadow-xl overflow-hidden min-h-0">
+                    <div class="px-4 py-2.5 bg-gray-900 border-b border-gray-800 flex justify-between items-center shrink-0">
+                        <div class="flex items-center gap-2 text-sm font-medium text-gray-300">
+                            <i class="fa-brands fa-python text-blue-400"></i>
+                            app.py
+                        </div>
+                        <span class="px-2 py-0.5 text-[10px] font-semibold bg-gray-800 text-gray-400 rounded-full">Source</span>
+                    </div>
+                    <div id="editor-python" class="flex-1 w-full min-h-0"></div>
+                </div>
+
+                <div class="h-48 flex flex-col bg-gray-900 rounded-xl border border-gray-800 shadow-xl overflow-hidden shrink-0">
+                    <div class="px-4 py-2.5 bg-gray-900 border-b border-gray-800 flex justify-between items-center shrink-0">
+                        <div class="flex items-center gap-2 text-sm font-medium text-gray-300">
+                            <i class="fa-solid fa-terminal text-green-400"></i>
+                            Mock Build Logs (For Remediation)
+                        </div>
+                    </div>
+                    <div id="editor-logs" class="flex-1 w-full min-h-0"></div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4 min-h-0">
+                <div class="flex-1 flex flex-col bg-gray-900 rounded-xl border border-gray-800 shadow-xl overflow-hidden min-h-0">
+                    <div class="px-4 py-2.5 bg-gray-900 border-b border-gray-800 flex justify-between items-center shrink-0">
+                        <div class="flex items-center gap-2 text-sm font-medium text-gray-300">
+                            <i class="fa-brands fa-docker text-blue-500"></i>
+                            Dockerfile
+                        </div>
+                        <span id="remediation-badge" class="hidden px-2 py-0.5 text-[10px] font-semibold bg-green-500/20 text-green-400 border border-green-500/30 rounded-full">Patched by AI</span>
+                    </div>
+                    <div id="editor-dockerfile" class="flex-1 w-full min-h-0"></div>
+                </div>
+
+                <div class="h-48 flex flex-col bg-gray-900 rounded-xl border border-gray-800 shadow-xl overflow-hidden shrink-0">
+                    <div class="px-4 py-2.5 bg-gray-900 border-b border-gray-800 flex items-center gap-2 text-sm font-medium text-gray-300 shrink-0">
+                        <i class="fa-solid fa-file-lines text-gray-400"></i>
+                        .dockerignore
+                    </div>
+                    <div id="editor-dockerignore" class="flex-1 w-full min-h-0"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const VFS_FILES = __VFS_FILES_JSON_INJECTION__;
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+
+    <script>
+        let pyodideInstance = null;
+        let editors = {};
+
+        const defaultPython = `import os
+import sys
+import requests
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def hello():
+    return "Hello from DockerForge!"
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
+`;
+        const defaultLogs = `Step 1/5 : FROM python:3.12-slim
+ ---> 1234567890ab
+Step 2/5 : WORKDIR /app
+ ---> Running in abcdef123456
+Step 3/5 : COPY . /app
+ ---> 9876543210cd
+Step 4/5 : CMD ["python", "app.py"]
+ ---> Running in fedcba654321
+Traceback (most recent call last):
+  File "app.py", line 3, in <module>
+    import requests
+ModuleNotFoundError: No module named 'requests'`;
+
+        async function initApp() {
+            try {
+                // Initialize Pyodide first
+                pyodideInstance = await loadPyodide();
+
+                for (const [path, content] of Object.entries(VFS_FILES)) {
+                    const parts = path.split('/');
+                    let currentDir = '';
+                    for (let i = 0; i < parts.length - 1; i++) {
+                        currentDir += (currentDir ? '/' : '') + parts[i];
+                        try {
+                            pyodideInstance.FS.mkdir(currentDir);
+                        } catch (e) {}
+                    }
+                    pyodideInstance.FS.writeFile(path, content);
+                }
+
+                await pyodideInstance.runPythonAsync(`
+import sys
+import os
+from pathlib import Path
+sys.path.insert(0, '/dockerforge')
+sys.path.insert(0, '/')
+                `);
+
+                // Now load Monaco
+                const script = document.createElement('script');
+                script.src = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js";
+                script.onload = () => {
+                    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' } });
+                    require(['vs/editor/editor.main'], function () {
+                        const commonOptions = {
+                            theme: 'vs-dark',
+                            minimap: { enabled: false },
+                            fontSize: 13,
+                            fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                            scrollBeyondLastLine: false,
+                            roundedSelection: false,
+                            padding: { top: 12, bottom: 12 },
+                            automaticLayout: true
+                        };
+
+                        editors.python = monaco.editor.create(document.getElementById('editor-python'), {
+                            ...commonOptions,
+                            value: defaultPython,
+                            language: 'python'
+                        });
+
+                        editors.logs = monaco.editor.create(document.getElementById('editor-logs'), {
+                            ...commonOptions,
+                            value: defaultLogs,
+                            language: 'shell'
+                        });
+
+                        editors.dockerfile = monaco.editor.create(document.getElementById('editor-dockerfile'), {
+                            ...commonOptions,
+                            value: "# Run 'Analyze & Generate' to create Dockerfile",
+                            language: 'dockerfile',
+                            readOnly: false
+                        });
+
+                        editors.dockerignore = monaco.editor.create(document.getElementById('editor-dockerignore'), {
+                            ...commonOptions,
+                            value: "# Run 'Analyze & Generate' to create .dockerignore",
+                            language: 'plaintext',
+                            readOnly: true
+                        });
+
+                        document.getElementById('loader').style.opacity = '0';
+                        setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+                    });
+                };
+                document.head.appendChild(script);
+
+            } catch (error) {
+                console.error("Initialization failed:", error);
+                document.getElementById('loader').innerHTML = `<h2 class="text-red-500 text-xl font-bold">Initialization Failed</h2><p class="text-gray-400 mt-2">${error.message}</p>`;
+            }
+        }
+
+        async function analyzeAndGenerate() {
+            if (!pyodideInstance) return;
+
+            const pythonCode = editors.python.getValue();
+            pyodideInstance.FS.writeFile('/app.py', pythonCode);
+
+            document.getElementById('remediation-badge').classList.add('hidden');
+            editors.dockerfile.setValue("# Analyzing codebase...");
+
+            try {
+                const result = await pyodideInstance.runPythonAsync(`
+from dockerforge.core.analyzer import PythonAnalyzer
+from dockerforge.core.generator import DockerfileGenerator
+from pathlib import Path
+import json
+
+analyzer = PythonAnalyzer()
+analysis = analyzer.analyze_file(Path('/app.py'), Path('/'))
+
+generator = DockerfileGenerator()
+artifacts = generator.synthesize(
+    entrypoint="app.py",
+    third_party=analysis.third_party,
+    python_version="3.12-slim"
+)
+
+json.dumps({
+    "dockerfile": artifacts.dockerfile,
+    "dockerignore": artifacts.dockerignore,
+    "third_party": list(analysis.third_party)
+})
+                `);
+
+                const data = JSON.parse(result);
+                editors.dockerfile.setValue(data.dockerfile);
+                editors.dockerignore.setValue(data.dockerignore);
+
+            } catch (error) {
+                console.error(error);
+                editors.dockerfile.setValue("# Error during analysis:\n" + error.message);
+            }
+        }
+
+        async function runRemediation() {
+            if (!pyodideInstance) return;
+
+            const dockerfileContent = editors.dockerfile.getValue();
+            const logsContent = editors.logs.getValue();
+
+            const safeDockerfile = JSON.stringify(dockerfileContent);
+            const safeLogs = JSON.stringify(logsContent.split('\\n'));
+
+            try {
+                const result = await pyodideInstance.runPythonAsync(`
+from dockerforge.remediation.patcher import ConfigPatcher
+import json
+
+patcher = ConfigPatcher()
+dockerfile_content = ${safeDockerfile}
+logs = ${safeLogs}
+
+patch_result = patcher.patch_dockerfile(dockerfile_content, logs)
+
+json.dumps({
+    "changed": patch_result.changed,
+    "content": patch_result.content
+})
+                `);
+
+                const data = JSON.parse(result);
+                if (data.changed) {
+                    editors.dockerfile.setValue(data.content);
+                    document.getElementById('remediation-badge').classList.remove('hidden');
+                } else {
+                    alert("No remediation needed or pattern not recognized in logs.");
+                }
+
+            } catch (error) {
+                console.error(error);
+                alert("Error during remediation: " + error.message);
+            }
+        }
+
+        // Start initialization
+        initApp();
+    </script>
+</body>
+</html>
