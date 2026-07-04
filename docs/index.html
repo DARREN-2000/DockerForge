@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DockerForge | Production Playground</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            850: '#1f2937',
+                            900: '#111827',
+                            950: '#030712',
+                        },
+                        primary: {
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .monaco-container {
+            height: calc(100vh - 280px);
+            min-height: 400px;
+        }
+        .logs-container {
+            height: 150px;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+        body {
+            background-color: #030712;
+            color: #f3f4f6;
+        }
+        #loader {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(3, 7, 18, 0.9);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col font-sans antialiased selection:bg-primary-500 selection:text-white">
+
+    <div id="loader">
+        <div class="spinner mb-4"></div>
+        <h2 class="text-xl font-semibold text-primary-400">Loading DockerForge AI Engine...</h2>
+        <p class="text-gray-400 mt-2">Initializing Pyodide and WebAssembly environment</p>
+    </div>
+
+    <header class="bg-gray-900 border-b border-gray-800 shadow-lg shrink-0">
+        <div class="max-w-[100rem] mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center shadow-lg shadow-primary-500/20">
+                        <i class="fa-brands fa-docker text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-purple-400">DockerForge</h1>
+                        <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Pro Playground</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden flex flex-col p-4 gap-4 max-w-[100rem] w-full mx-auto">
+        <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-200">Interactive Auto-Remediation Loop</h2>
+            <div class="flex gap-3">
+                <button onclick="analyzeAndGenerate()" class="px-5 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-500 shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    Analyze & Generate
+                </button>
+                <button onclick="runRemediation()" class="px-5 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-500 shadow-lg shadow-purple-500/20 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-wrench"></i>
+                    Auto Remediate
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
+            <div class="flex flex-col gap-4 min-h-0">
+                <div class="flex-1 flex flex-col bg-gray-900 rounded-xl border border-gray-800 shadow-xl overflow-hidden min-h-0">
+                    <div class="px-4 py-2.5 bg-gray-900 border-b border-gray-800 flex justify-between items-center shrink-0">
+                        <div class="flex items-center gap-2 text-sm font-medium text-gray-300">
+                            <i class="fa-brands fa-python text-blue-400"></i>
+                            app.py
+                        </div>
+                        <span class="px-2 py-0.5 text-[10px] font-semibold bg-gray-800 text-gray-400 rounded-full">Source</span>
+                    </div>
+                    <div id="editor-python" class="flex-1 w-full min-h-0"></div>
+                </div>
+
+                <div class="h-48 flex flex-col bg-gray-900 rounded-xl border border-gray-800 shadow-xl overflow-hidden shrink-0">
+                    <div class="px-4 py-2.5 bg-gray-900 border-b border-gray-800 flex justify-between items-center shrink-0">
+                        <div class="flex items-center gap-2 text-sm font-medium text-gray-300">
+                            <i class="fa-solid fa-terminal text-green-400"></i>
+                            Mock Build Logs (For Remediation)
+                        </div>
+                    </div>
+                    <div id="editor-logs" class="flex-1 w-full min-h-0"></div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4 min-h-0">
+                <div class="flex-1 flex flex-col bg-gray-900 rounded-xl border border-gray-800 shadow-xl overflow-hidden min-h-0">
+                    <div class="px-4 py-2.5 bg-gray-900 border-b border-gray-800 flex justify-between items-center shrink-0">
+                        <div class="flex items-center gap-2 text-sm font-medium text-gray-300">
+                            <i class="fa-brands fa-docker text-blue-500"></i>
+                            Dockerfile
+                        </div>
+                        <span id="remediation-badge" class="hidden px-2 py-0.5 text-[10px] font-semibold bg-green-500/20 text-green-400 border border-green-500/30 rounded-full">Patched by AI</span>
+                    </div>
+                    <div id="editor-dockerfile" class="flex-1 w-full min-h-0"></div>
+                </div>
+
+                <div class="h-48 flex flex-col bg-gray-900 rounded-xl border border-gray-800 shadow-xl overflow-hidden shrink-0">
+                    <div class="px-4 py-2.5 bg-gray-900 border-b border-gray-800 flex items-center gap-2 text-sm font-medium text-gray-300 shrink-0">
+                        <i class="fa-solid fa-file-lines text-gray-400"></i>
+                        .dockerignore
+                    </div>
+                    <div id="editor-dockerignore" class="flex-1 w-full min-h-0"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const VFS_FILES = {"dockerforge/__init__.py": "\"\"\"DockerForge package.\"\"\"\n\n__all__ = [\"__version__\"]\n__version__ = \"0.1.0\"\n", "dockerforge/cli.py": "\"\"\"DockerForge CLI entrypoint.\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nfrom pathlib import Path\n\nfrom dockerforge.core.analyzer import PythonAnalyzer\nfrom dockerforge.core.generator import DockerfileGenerator\nfrom dockerforge.core.orchestrator import DockerOrchestrator\nfrom dockerforge.core.tracer import DependencyTracer\nfrom dockerforge.remediation.patcher import ConfigPatcher\nfrom dockerforge.utils.logger import get_logger\n\n\ndef build_parser() -> argparse.ArgumentParser:\n    parser = argparse.ArgumentParser(prog=\"dockerforge\")\n    subparsers = parser.add_subparsers(dest=\"command\", required=True)\n\n    analyze = subparsers.add_parser(\"analyze\")\n    analyze.add_argument(\"path\", type=Path)\n\n    generate = subparsers.add_parser(\"generate\")\n    generate.add_argument(\"entrypoint\")\n\n    remediate = subparsers.add_parser(\"remediate\")\n    remediate.add_argument(\"dockerfile\", type=Path)\n    remediate.add_argument(\"logfile\", type=Path)\n\n    build = subparsers.add_parser(\"build\")\n    build.add_argument(\"context\", type=Path)\n    build.add_argument(\"tag\")\n\n    return parser\n\n\ndef main() -> int:\n    logger = get_logger()\n    parser = build_parser()\n    args = parser.parse_args()\n\n    if args.command == \"analyze\":\n        tracer = DependencyTracer(PythonAnalyzer())\n        graph = tracer.trace(args.path, Path.cwd())\n        for file, result in graph.items():\n            logger.info(\n                \"file=%s stdlib=%s third_party=%s local=%s\",\n                file,\n                sorted(result.stdlib),\n                sorted(result.third_party),\n                sorted(result.local),\n            )\n        return 0\n\n    if args.command == \"generate\":\n        artifacts = DockerfileGenerator().synthesize(args.entrypoint)\n        Path(\"Dockerfile\").write_text(artifacts.dockerfile, encoding=\"utf-8\")\n        Path(\".dockerignore\").write_text(artifacts.dockerignore, encoding=\"utf-8\")\n        logger.info(\"Generated Dockerfile and .dockerignore\")\n        return 0\n\n    if args.command == \"remediate\":\n        dockerfile = args.dockerfile.read_text(encoding=\"utf-8\")\n        logs = args.logfile.read_text(encoding=\"utf-8\").splitlines()\n        patched = ConfigPatcher().patch_dockerfile(dockerfile, logs)\n        if patched.changed:\n            args.dockerfile.write_text(patched.content, encoding=\"utf-8\")\n            logger.info(\"Applied remediation patches\")\n        else:\n            logger.info(\"No remediation needed\")\n        return 0\n\n    if args.command == \"build\":\n        orchestrator = DockerOrchestrator()\n        for line in orchestrator.build(args.context, args.tag):\n            logger.info(line)\n        return 0\n\n    return 1\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n", "dockerforge/utils/logger.py": "\"\"\"Logging utilities for audit-ready output.\"\"\"\n\nfrom __future__ import annotations\n\nimport logging\n\n\ndef get_logger(name: str = \"dockerforge\", level: str = \"INFO\") -> logging.Logger:\n    logger = logging.getLogger(name)\n    if not logger.handlers:\n        handler = logging.StreamHandler()\n        formatter = logging.Formatter(\n            \"%(asctime)s %(levelname)s %(name)s %(message)s\",\n            datefmt=\"%Y-%m-%dT%H:%M:%S\",\n        )\n        handler.setFormatter(formatter)\n        logger.addHandler(handler)\n    logger.setLevel(level.upper())\n    logger.propagate = False\n    return logger\n", "dockerforge/core/analyzer.py": "\"\"\"AST-based dependency analyzer.\"\"\"\n\nfrom __future__ import annotations\n\nimport ast\nimport importlib.util\nimport sys\nfrom dataclasses import dataclass, field\nfrom pathlib import Path\nfrom typing import Protocol\n\n\n@dataclass\nclass AnalysisResult:\n    file: Path\n    stdlib: set[str] = field(default_factory=set)\n    third_party: set[str] = field(default_factory=set)\n    local: set[str] = field(default_factory=set)\n\n\nclass AnalyzerPlugin(Protocol):\n    def can_handle(self, file_path: Path) -> bool: ...\n\n    def analyze_file(self, file_path: Path, project_root: Path) -> AnalysisResult: ...\n\n\nclass PythonAnalyzer:\n    def can_handle(self, file_path: Path) -> bool:\n        return file_path.suffix == \".py\"\n\n    def analyze_file(self, file_path: Path, project_root: Path) -> AnalysisResult:\n        source = file_path.read_text(encoding=\"utf-8\")\n        tree = ast.parse(source)\n        result = AnalysisResult(file=file_path)\n\n        for node in ast.walk(tree):\n            module_name = None\n            if isinstance(node, ast.Import):\n                for name in node.names:\n                    module_name = name.name.split(\".\", 1)[0]\n                    self._classify(module_name, project_root, result)\n            elif isinstance(node, ast.ImportFrom) and node.module:\n                module_name = node.module.split(\".\", 1)[0]\n                self._classify(module_name, project_root, result)\n\n        return result\n\n    def analyze_tree(self, project_root: Path) -> dict[Path, AnalysisResult]:\n        output: dict[Path, AnalysisResult] = {}\n        for py_file in project_root.rglob(\"*.py\"):\n            if \"site-packages\" in py_file.parts:\n                continue\n            output[py_file] = self.analyze_file(py_file, project_root)\n        return output\n\n    def _classify(self, module: str, project_root: Path, result: AnalysisResult) -> None:\n        if module in sys.stdlib_module_names:\n            result.stdlib.add(module)\n            return\n\n        local_pkg = project_root / module\n        local_module_file = project_root / f\"{module}.py\"\n        src_local_pkg = project_root / \"src\" / module\n        src_local_module_file = project_root / \"src\" / f\"{module}.py\"\n        if (\n            local_pkg.exists()\n            or local_module_file.exists()\n            or src_local_pkg.exists()\n            or src_local_module_file.exists()\n        ):\n            result.local.add(module)\n            return\n\n        spec = importlib.util.find_spec(module)\n        if spec is None:\n            result.local.add(module)\n            return\n\n        origin = spec.origin or \"\"\n        if \"site-packages\" in origin or \"dist-packages\" in origin:\n            result.third_party.add(module)\n        elif \"python\" in origin.lower():\n            result.stdlib.add(module)\n        else:\n            result.local.add(module)\n", "dockerforge/core/generator.py": "\"\"\"Dockerfile and .dockerignore synthesis.\"\"\"\n\nfrom __future__ import annotations\n\nfrom dataclasses import dataclass\n\n\n@dataclass\nclass GeneratedArtifacts:\n    dockerfile: str\n    dockerignore: str\n\n\nclass DockerfileGenerator:\n    def synthesize(\n        self,\n        entrypoint: str,\n        third_party: set[str] | None = None,\n        python_version: str = \"3.12-slim\",\n    ) -> GeneratedArtifacts:\n        third_party = third_party or set()\n        req_block = \"\"\n        if third_party:\n            sorted_deps = \" \".join(sorted(third_party))\n            req_block = f\"RUN pip install --no-cache-dir {sorted_deps}\\n\"\n\n        dockerfile = (\n            f\"FROM python:{python_version}\\n\"\n            \"ENV PYTHONDONTWRITEBYTECODE=1\\n\"\n            \"ENV PYTHONUNBUFFERED=1\\n\"\n            \"WORKDIR /app\\n\"\n            \"COPY . /app\\n\"\n            f\"{req_block}\"\n            f\"CMD [\\\"python\\\", \\\"{entrypoint}\\\"]\\n\"\n        )\n\n        dockerignore = \"\\n\".join(\n            [\n                \"__pycache__/\",\n                \"*.pyc\",\n                \".git/\",\n                \".venv/\",\n                \"venv/\",\n                \".pytest_cache/\",\n                \"dist/\",\n                \"build/\",\n            ]\n        ) + \"\\n\"\n\n        return GeneratedArtifacts(dockerfile=dockerfile, dockerignore=dockerignore)\n", "dockerforge/core/orchestrator.py": "\"\"\"Docker command orchestration and log streaming.\"\"\"\n\nfrom __future__ import annotations\n\nimport subprocess\nfrom pathlib import Path\nfrom typing import Iterable\n\n\nclass DockerOrchestrator:\n    def build(self, context_dir: Path, tag: str) -> Iterable[str]:\n        command = [\"docker\", \"build\", \"-t\", tag, str(context_dir)]\n        process = subprocess.Popen(\n            command,\n            stdout=subprocess.PIPE,\n            stderr=subprocess.STDOUT,\n            text=True,\n        )\n        for line in process.stdout:\n            yield line.rstrip(\"\\n\")\n\n        return_code = process.wait()\n        if return_code != 0:\n            raise RuntimeError(f\"Docker build failed with status {return_code}\")\n", "dockerforge/core/tracer.py": "\"\"\"Recursive dependency tracing.\"\"\"\n\nfrom __future__ import annotations\n\nfrom pathlib import Path\n\nfrom .analyzer import AnalysisResult, PythonAnalyzer\n\n\nclass DependencyTracer:\n    def __init__(self, analyzer: PythonAnalyzer | None = None) -> None:\n        self.analyzer = analyzer or PythonAnalyzer()\n\n    def trace(self, entry_file: Path, project_root: Path) -> dict[Path, AnalysisResult]:\n        visited: set[Path] = set()\n        graph: dict[Path, AnalysisResult] = {}\n        self._walk(entry_file.resolve(), project_root.resolve(), visited, graph)\n        return graph\n\n    def _walk(\n        self,\n        current_file: Path,\n        project_root: Path,\n        visited: set[Path],\n        graph: dict[Path, AnalysisResult],\n    ) -> None:\n        if current_file in visited or not current_file.exists():\n            return\n        if not self.analyzer.can_handle(current_file):\n            return\n\n        visited.add(current_file)\n        result = self.analyzer.analyze_file(current_file, project_root)\n        graph[current_file] = result\n\n        for local_mod in result.local:\n            candidates = [\n                project_root / f\"{local_mod}.py\",\n                project_root / local_mod / \"__init__.py\",\n                project_root / \"src\" / local_mod / \"__init__.py\",\n                project_root / \"src\" / f\"{local_mod}.py\",\n            ]\n            for candidate in candidates:\n                if candidate.exists():\n                    self._walk(candidate.resolve(), project_root, visited, graph)\n                    break\n", "dockerforge/remediation/patterns.py": "\"\"\"Known remediation signatures for build failures.\"\"\"\n\nfrom __future__ import annotations\n\nfrom dataclasses import dataclass\nimport re\n\n\n@dataclass(frozen=True)\nclass RemediationPattern:\n    name: str\n    regex: re.Pattern[str]\n    action: str\n\n\nPATTERNS = [\n    RemediationPattern(\n        name=\"missing_workdir\",\n        regex=re.compile(r\"(?i)workdir.*not set|no working directory\"),\n        action=\"ensure_workdir\",\n    ),\n    RemediationPattern(\n        name=\"module_not_found\",\n        regex=re.compile(r\"(?i)ModuleNotFoundError: No module named ['\\\"]([\\w\\-\\.]+)['\\\"]\"),\n        action=\"install_missing_module\",\n    ),\n    RemediationPattern(\n        name=\"apt_index_missing\",\n        regex=re.compile(r\"(?i)unable to locate package\"),\n        action=\"add_apt_update\",\n    ),\n]\n\n\ndef match_pattern(log_line: str) -> RemediationPattern | None:\n    for pattern in PATTERNS:\n        if pattern.regex.search(log_line):\n            return pattern\n    return None\n", "dockerforge/remediation/patcher.py": "\"\"\"Configuration patching for auto remediation loop.\"\"\"\n\nfrom __future__ import annotations\n\nfrom dataclasses import dataclass\n\nfrom .patterns import match_pattern\n\n\n@dataclass\nclass PatchResult:\n    changed: bool\n    content: str\n\n\nclass ConfigPatcher:\n    def patch_dockerfile(self, dockerfile_content: str, build_logs: list[str]) -> PatchResult:\n        needs_workdir = False\n        needs_apt = False\n        missing_packages: set[str] = set()\n\n        for line in build_logs:\n            pattern = match_pattern(line)\n            if pattern is None:\n                continue\n\n            if pattern.action == \"ensure_workdir\":\n                needs_workdir = True\n            elif pattern.action == \"add_apt_update\":\n                needs_apt = True\n            elif pattern.action == \"install_missing_module\":\n                module_match = pattern.regex.search(line)\n                if module_match:\n                    missing_packages.add(module_match.group(1).split(\".\", 1)[0])\n\n        lines = dockerfile_content.splitlines()\n        has_workdir = any(line.strip().startswith(\"WORKDIR \") for line in lines)\n        has_apt = any(\"apt-get update\" in line for line in lines)\n        installed_packages = self._extract_installed_packages(lines)\n\n        changed = False\n\n        if needs_workdir and not has_workdir:\n            insert_idx = self._find_insert_index(lines)\n            lines.insert(insert_idx, \"WORKDIR /app\")\n            changed = True\n\n        if needs_apt and not has_apt:\n            insert_idx = self._find_insert_index(lines)\n            lines.insert(insert_idx, \"RUN apt-get update && apt-get install -y --no-install-recommends curl\")\n            changed = True\n\n        to_install = sorted(pkg for pkg in missing_packages if pkg and pkg not in installed_packages)\n        if to_install:\n            install_line = f\"RUN pip install --no-cache-dir {' '.join(to_install)}\"\n            insert_idx = self._find_insert_index(lines)\n            lines.insert(insert_idx, install_line)\n            changed = True\n\n        content = \"\\n\".join(lines)\n        if dockerfile_content.endswith(\"\\n\"):\n            content += \"\\n\"\n\n        return PatchResult(changed=changed, content=content)\n\n    def _find_insert_index(self, lines: list[str]) -> int:\n        for idx, line in enumerate(lines):\n            if line.strip().startswith(\"COPY \"):\n                return idx\n        for idx, line in enumerate(lines):\n            stripped = line.strip()\n            if stripped.startswith(\"CMD \") or stripped.startswith(\"ENTRYPOINT \"):\n                return idx\n        return len(lines)\n\n    def _extract_installed_packages(self, lines: list[str]) -> set[str]:\n        packages: set[str] = set()\n        for line in lines:\n            stripped = line.strip()\n            if not stripped.startswith(\"RUN \") or \"pip install\" not in stripped:\n                continue\n\n            after_install = stripped.split(\"pip install\", 1)[1].strip()\n            tokens = [token for token in after_install.split() if not token.startswith(\"-\")]\n            for token in tokens:\n                clean = token.split(\"==\", 1)[0].split(\"[\", 1)[0]\n                if clean:\n                    packages.add(clean)\n        return packages\n"};
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+
+    <script>
+        let pyodideInstance = null;
+        let editors = {};
+
+        const defaultPython = `import os
+import sys
+import requests
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def hello():
+    return "Hello from DockerForge!"
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
+`;
+        const defaultLogs = `Step 1/5 : FROM python:3.12-slim
+ ---> 1234567890ab
+Step 2/5 : WORKDIR /app
+ ---> Running in abcdef123456
+Step 3/5 : COPY . /app
+ ---> 9876543210cd
+Step 4/5 : CMD ["python", "app.py"]
+ ---> Running in fedcba654321
+Traceback (most recent call last):
+  File "app.py", line 3, in <module>
+    import requests
+ModuleNotFoundError: No module named 'requests'`;
+
+        async function initApp() {
+            try {
+                // Initialize Pyodide first
+                pyodideInstance = await loadPyodide();
+
+                for (const [path, content] of Object.entries(VFS_FILES)) {
+                    const parts = path.split('/');
+                    let currentDir = '';
+                    for (let i = 0; i < parts.length - 1; i++) {
+                        currentDir += (currentDir ? '/' : '') + parts[i];
+                        try {
+                            pyodideInstance.FS.mkdir(currentDir);
+                        } catch (e) {}
+                    }
+                    pyodideInstance.FS.writeFile(path, content);
+                }
+
+                await pyodideInstance.runPythonAsync(`
+import sys
+import os
+from pathlib import Path
+sys.path.insert(0, '/dockerforge')
+sys.path.insert(0, '/')
+                `);
+
+                // Now load Monaco
+                const script = document.createElement('script');
+                script.src = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js";
+                script.onload = () => {
+                    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' } });
+                    require(['vs/editor/editor.main'], function () {
+                        const commonOptions = {
+                            theme: 'vs-dark',
+                            minimap: { enabled: false },
+                            fontSize: 13,
+                            fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                            scrollBeyondLastLine: false,
+                            roundedSelection: false,
+                            padding: { top: 12, bottom: 12 },
+                            automaticLayout: true
+                        };
+
+                        editors.python = monaco.editor.create(document.getElementById('editor-python'), {
+                            ...commonOptions,
+                            value: defaultPython,
+                            language: 'python'
+                        });
+
+                        editors.logs = monaco.editor.create(document.getElementById('editor-logs'), {
+                            ...commonOptions,
+                            value: defaultLogs,
+                            language: 'shell'
+                        });
+
+                        editors.dockerfile = monaco.editor.create(document.getElementById('editor-dockerfile'), {
+                            ...commonOptions,
+                            value: "# Run 'Analyze & Generate' to create Dockerfile",
+                            language: 'dockerfile',
+                            readOnly: false
+                        });
+
+                        editors.dockerignore = monaco.editor.create(document.getElementById('editor-dockerignore'), {
+                            ...commonOptions,
+                            value: "# Run 'Analyze & Generate' to create .dockerignore",
+                            language: 'plaintext',
+                            readOnly: true
+                        });
+
+                        document.getElementById('loader').style.opacity = '0';
+                        setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+                    });
+                };
+                document.head.appendChild(script);
+
+            } catch (error) {
+                console.error("Initialization failed:", error);
+                document.getElementById('loader').innerHTML = `<h2 class="text-red-500 text-xl font-bold">Initialization Failed</h2><p class="text-gray-400 mt-2">${error.message}</p>`;
+            }
+        }
+
+        async function analyzeAndGenerate() {
+            if (!pyodideInstance) return;
+
+            const pythonCode = editors.python.getValue();
+            pyodideInstance.FS.writeFile('/app.py', pythonCode);
+
+            document.getElementById('remediation-badge').classList.add('hidden');
+            editors.dockerfile.setValue("# Analyzing codebase...");
+
+            try {
+                const result = await pyodideInstance.runPythonAsync(`
+from dockerforge.core.analyzer import PythonAnalyzer
+from dockerforge.core.generator import DockerfileGenerator
+from pathlib import Path
+import json
+
+analyzer = PythonAnalyzer()
+analysis = analyzer.analyze_file(Path('/app.py'), Path('/'))
+
+generator = DockerfileGenerator()
+artifacts = generator.synthesize(
+    entrypoint="app.py",
+    third_party=analysis.third_party,
+    python_version="3.12-slim"
+)
+
+json.dumps({
+    "dockerfile": artifacts.dockerfile,
+    "dockerignore": artifacts.dockerignore,
+    "third_party": list(analysis.third_party)
+})
+                `);
+
+                const data = JSON.parse(result);
+                editors.dockerfile.setValue(data.dockerfile);
+                editors.dockerignore.setValue(data.dockerignore);
+
+            } catch (error) {
+                console.error(error);
+                editors.dockerfile.setValue("# Error during analysis:\n" + error.message);
+            }
+        }
+
+        async function runRemediation() {
+            if (!pyodideInstance) return;
+
+            const dockerfileContent = editors.dockerfile.getValue();
+            const logsContent = editors.logs.getValue();
+
+            const safeDockerfile = JSON.stringify(dockerfileContent);
+            const safeLogs = JSON.stringify(logsContent.split('\\n'));
+
+            try {
+                const result = await pyodideInstance.runPythonAsync(`
+from dockerforge.remediation.patcher import ConfigPatcher
+import json
+
+patcher = ConfigPatcher()
+dockerfile_content = ${safeDockerfile}
+logs = ${safeLogs}
+
+patch_result = patcher.patch_dockerfile(dockerfile_content, logs)
+
+json.dumps({
+    "changed": patch_result.changed,
+    "content": patch_result.content
+})
+                `);
+
+                const data = JSON.parse(result);
+                if (data.changed) {
+                    editors.dockerfile.setValue(data.content);
+                    document.getElementById('remediation-badge').classList.remove('hidden');
+                } else {
+                    alert("No remediation needed or pattern not recognized in logs.");
+                }
+
+            } catch (error) {
+                console.error(error);
+                alert("Error during remediation: " + error.message);
+            }
+        }
+
+        // Start initialization
+        initApp();
+    </script>
+</body>
+</html>
