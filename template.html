@@ -95,7 +95,7 @@
                     </div>
                     <div>
                         <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-purple-400">DockerForge</h1>
-                        <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Pro Playground</p>
+                        <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Production Analyzer</p>
                     </div>
                 </div>
             </div>
@@ -104,8 +104,18 @@
 
     <main class="flex-1 overflow-hidden flex flex-col p-4 gap-4 max-w-[100rem] w-full mx-auto">
         <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-gray-200">Interactive Auto-Remediation Loop</h2>
+            <div class="flex items-center gap-4">
+                <h2 class="text-lg font-semibold text-gray-200">Interactive Auto-Remediation Loop</h2>
+                <div class="flex items-center gap-2 bg-gray-900 px-3 py-1.5 rounded-lg border border-gray-700">
+                    <span class="text-sm text-gray-400">Entrypoint:</span>
+                    <input type="text" id="entrypoint-input" value="app.py" class="bg-transparent border-none text-sm text-white focus:outline-none focus:ring-0 w-32 placeholder-gray-500" placeholder="main.py">
+                </div>
+            </div>
             <div class="flex gap-3">
+                <button onclick="loadLocalProject()" class="px-5 py-2 text-sm font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-600 shadow-lg shadow-gray-700/20 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-folder-open"></i>
+                    Load Directory
+                </button>
                 <button onclick="analyzeAndGenerate()" class="px-5 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-500 shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2">
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                     Analyze & Generate
@@ -123,7 +133,7 @@
                     <div class="px-4 py-2.5 bg-gray-900 border-b border-gray-800 flex justify-between items-center shrink-0">
                         <div class="flex items-center gap-2 text-sm font-medium text-gray-300">
                             <i class="fa-brands fa-python text-blue-400"></i>
-                            app.py
+                            <span id="active-file-label">app.py</span>
                         </div>
                         <span class="px-2 py-0.5 text-[10px] font-semibold bg-gray-800 text-gray-400 rounded-full">Source</span>
                     </div>
@@ -281,14 +291,94 @@ sys.path.insert(0, '/')
             }
         }
 
+        let isProjectLoaded = false;
+        let activeFilePath = '/app.py';
+
+        async function loadLocalProject() {
+            if (!window.showDirectoryPicker) {
+                alert("Your browser does not support the File System Access API. Try Chrome or Edge.");
+                return;
+            }
+            try {
+                const dirHandle = await window.showDirectoryPicker();
+                document.getElementById('loader').style.display = 'flex';
+                document.getElementById('loader').style.opacity = '1';
+                document.querySelector('#loader h2').innerText = "Loading Local Project...";
+
+                try {
+                    pyodideInstance.FS.mkdir('/workspace');
+                } catch(e) {}
+
+                let entrypointFound = null;
+
+                async function readDirectory(dirHandle, currentPath) {
+                    for await (const entry of dirHandle.values()) {
+                        const newPath = currentPath + '/' + entry.name;
+                        if (entry.kind === 'file') {
+                            const file = await entry.getFile();
+                            const buffer = await file.arrayBuffer();
+                            pyodideInstance.FS.writeFile(newPath, new Uint8Array(buffer));
+
+                            if (entry.name.endsWith('.py')) {
+                                if (entry.name === 'main.py' || entry.name === 'app.py') {
+                                    entrypointFound = entry.name;
+                                    const text = await file.text();
+                                    editors.python.setValue(text);
+                                    document.getElementById('active-file-label').innerText = entry.name;
+                                    activeFilePath = newPath;
+                                } else if (!entrypointFound && !activeFilePath.startsWith('/workspace')) {
+                                    // Set to first python file found if no main.py/app.py
+                                    const text = await file.text();
+                                    editors.python.setValue(text);
+                                    document.getElementById('active-file-label').innerText = entry.name;
+                                    activeFilePath = newPath;
+                                }
+                            }
+                        } else if (entry.kind === 'directory') {
+                            // Skip common hidden/build dirs
+                            if (['.git', '.venv', 'venv', 'node_modules', '__pycache__'].includes(entry.name)) continue;
+                            try {
+                                pyodideInstance.FS.mkdir(newPath);
+                            } catch(e) {}
+                            await readDirectory(entry, newPath);
+                        }
+                    }
+                }
+
+                await readDirectory(dirHandle, '/workspace');
+
+                isProjectLoaded = true;
+                if (entrypointFound) {
+                    document.getElementById('entrypoint-input').value = entrypointFound;
+                } else {
+                    const parts = activeFilePath.split('/');
+                    document.getElementById('entrypoint-input').value = parts[parts.length - 1];
+                }
+
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+
+            } catch (err) {
+                console.error(err);
+                alert("Failed to load project: " + err.message);
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
+
         async function analyzeAndGenerate() {
             if (!pyodideInstance) return;
 
             const pythonCode = editors.python.getValue();
-            pyodideInstance.FS.writeFile('/app.py', pythonCode);
+            pyodideInstance.FS.writeFile(activeFilePath, pythonCode);
+
+            const entrypoint = document.getElementById('entrypoint-input').value || 'app.py';
 
             document.getElementById('remediation-badge').classList.add('hidden');
             editors.dockerfile.setValue("# Analyzing codebase...");
+
+            const analyzeRoot = isProjectLoaded ? '/workspace' : '/';
+            const analyzeTarget = isProjectLoaded ? 'Path("/workspace")' : 'Path("/app.py")';
+            const analyzeMethod = isProjectLoaded ? 'analyzer.analyze_tree(target)' : 'analyzer.analyze_file(target, root)';
 
             try {
                 const result = await pyodideInstance.runPythonAsync(`
@@ -297,20 +387,30 @@ from dockerforge.core.generator import DockerfileGenerator
 from pathlib import Path
 import json
 
+root = Path('${analyzeRoot}')
+target = Path('${isProjectLoaded ? '/workspace' : '/app.py'}')
+
 analyzer = PythonAnalyzer()
-analysis = analyzer.analyze_file(Path('/app.py'), Path('/'))
+if target.is_dir():
+    results = analyzer.analyze_tree(target)
+    all_third_party = set()
+    for res in results.values():
+        all_third_party.update(res.third_party)
+else:
+    res = analyzer.analyze_file(target, root)
+    all_third_party = res.third_party
 
 generator = DockerfileGenerator()
 artifacts = generator.synthesize(
-    entrypoint="app.py",
-    third_party=analysis.third_party,
+    entrypoint="${entrypoint}",
+    third_party=all_third_party,
     python_version="3.12-slim"
 )
 
 json.dumps({
     "dockerfile": artifacts.dockerfile,
     "dockerignore": artifacts.dockerignore,
-    "third_party": list(analysis.third_party)
+    "third_party": list(all_third_party)
 })
                 `);
 

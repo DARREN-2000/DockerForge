@@ -73,7 +73,7 @@ class PythonAnalyzer:
 
         spec = importlib.util.find_spec(module)
         if spec is None:
-            result.local.add(module)
+            result.third_party.add(module)
             return
 
         origin = spec.origin or ""
