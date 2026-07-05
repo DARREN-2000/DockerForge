@@ -431,7 +431,7 @@ json.dumps({
             const logsContent = editors.logs.getValue();
 
             const safeDockerfile = JSON.stringify(dockerfileContent);
-            const safeLogs = JSON.stringify(logsContent.split('\\n'));
+            const safeLogs = JSON.stringify(logsContent.split("\n"));
 
             try {
                 const result = await pyodideInstance.runPythonAsync(`
